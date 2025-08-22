@@ -4232,9 +4232,34 @@ input:checked + .slider:before {
 
 /* ▲▲▲ 新CSS粘贴结束 ▲▲▲ */
 
+/* ▼▼▼ 【全新】为主题库弹窗提升层级 ▼▼▼ */
+#theme-library-modal {
+    z-index: 101; /* 比默认的100高一点，就能显示在上面了 */
+}
+/* ▲▲▲ 新CSS粘贴结束 ▲▲▲ */
+
+
     </style>
 </head>
 <body>
+
+<div id="theme-library-modal" class="modal">
+    <div class="modal-content" style="height: 60%;">
+        <div class="modal-header">
+            <span>我的主题库</span>
+        </div>
+        <div class="modal-body">
+            <div id="theme-list-container" style="display: flex; flex-direction: column; gap: 10px;">
+                </div>
+        </div>
+        <div class="modal-footer">
+            <button class="save" id="close-theme-library-btn" style="width: 100%;">关闭</button>
+        </div>
+    </div>
+</div>
+
+
+
         <div id="phone-screen">
             <div id="status-bar">
                 <span id="status-bar-time">12:00</span>
@@ -4947,7 +4972,10 @@ input:checked + .slider:before {
 <div class="form-group">
     <label for="custom-css-input">
         自定义气泡样式 (CSS)
-        <button id="reset-custom-css-btn" type="button" style="background: none; border: 1px solid #ccc; color: #555; font-size: 12px; padding: 2px 8px; border-radius: 5px; cursor: pointer; margin-left: 10px;">重置</button>
+        <span style="margin-left: 10px;">
+            <button id="save-theme-btn" type="button" style="background: none; border: 1px solid #4cd964; color: #4cd964; font-size: 12px; padding: 2px 8px; border-radius: 5px; cursor: pointer;">保存主题</button>
+            <button id="reset-custom-css-btn" type="button" style="background: none; border: 1px solid #ccc; color: #555; font-size: 12px; padding: 2px 8px; border-radius: 5px; cursor: pointer; margin-left: 5px;">重置</button>
+        </span>
     </label>
     <textarea id="custom-css-input" rows="5" style="width: 100%; margin-top: 8px; font-family: monospace; font-size: 12px; resize: vertical;" placeholder="/* 示例：为“我”的气泡添加渐变背景和阴影 */
 .message-bubble.user .content {
@@ -4955,7 +4983,9 @@ input:checked + .slider:before {
   box-shadow: 0 4px 10px rgba(0,0,0,0.1);
   border-radius: 15px 4px 15px 15px;
 }"></textarea>
+    <button id="open-theme-library-btn" class="form-button form-button-secondary" style="margin-top: 10px;">主题库</button>
 </div>
+
 <!-- ▲▲▲ 新代码粘贴结束 ▲▲▲ -->
 
 <!-- ▼▼▼ 请将这段新代码粘贴到自定义CSS输入框的 form-group 之后 ▼▼▼ -->
@@ -5696,9 +5726,9 @@ if(Array.isArray(res) && res.length > 1) {
         // 1. 所有变量和常量定义
         // ===================================================================
         const db = new Dexie('GeminiChatDB');
-        // --- 已修正 ---
-        let state = { chats: {}, activeChatId: null, globalSettings: {}, apiConfig: {}, userStickers: [], worldBooks: [], personaPresets: [], qzoneSettings: {}, activeAlbumId: null };
-        // --- 修正结束 ---
+       // ▼▼▼ 在 state 定义中新增一行 ▼▼▼
+let state = { chats: {}, activeChatId: null, globalSettings: {}, apiConfig: {}, userStickers: [], worldBooks: [], personaPresets: [], qzoneSettings: {}, activeAlbumId: null, customThemes: [] };
+// ▲▲▲ 新增结束 ▲▲▲
 let musicState = { 
     isActive: false, 
     activeChatId: null, 
@@ -5856,14 +5886,14 @@ function showCustomPrompt(title, placeholder, initialValue = '', type = 'text', 
         // ===================================================================
         // 2. 数据库结构定义
         // ===================================================================
-
-db.version(23).stores({ 
+// ▼▼▼ 请用这行【新代码】替换旧的 db.version(23).stores(...) ▼▼▼
+db.version(24).stores({ 
     chats: '&id, isGroup, groupId', 
     apiConfig: '&id', 
     globalSettings: '&id', 
     userStickers: '&id, url, name',
-    worldBooks: '&id, name, categoryId', // <-- 【核心修改1】在这里添加 categoryId
-    worldBookCategories: '++id, name',    // <-- 【核心修改2】新增这个表
+    worldBooks: '&id, name, categoryId',
+    worldBookCategories: '++id, name',
     musicLibrary: '&id', 
     personaPresets: '&id',
     qzoneSettings: '&id',
@@ -5873,8 +5903,10 @@ db.version(23).stores({
     favorites: '++id, type, timestamp, originalTimestamp',
     qzoneGroups: '++id, name',
     memories: '++id, chatId, timestamp, type, targetDate' ,
-    callRecords: '++id, chatId, timestamp, customName' // <--【核心修改】在这里加上 customName
+    callRecords: '++id, chatId, timestamp, customName',
+    customThemes: '++id, name' // <--- 【核心新增】在这里添加新表
 });
+// ▲▲▲ 替换结束 ▲▲▲
 
         // ===================================================================
         // 3. 所有功能函数定义
@@ -6312,20 +6344,16 @@ function displayFilteredFavorites(items) {
             document.getElementById('switch-to-image-mode').click();
         }
 
-// ▼▼▼ 用这个【已包含 memories】的版本，完整替换旧的 exportBackup 函数 ▼▼▼
+
+// ▼▼▼ 用这个【已更新】的版本替换旧的 exportBackup 函数 ▼▼▼
 async function exportBackup() {
     try {
-        const backupData = {
-            version: 1, 
-            timestamp: Date.now()
-        };
-
+        const backupData = { version: 1, timestamp: Date.now() };
         const [
             chats, worldBooks, userStickers, apiConfig, globalSettings,
             personaPresets, musicLibrary, qzoneSettings, qzonePosts,
             qzoneAlbums, qzonePhotos, favorites, qzoneGroups,
-            memories,
-            worldBookCategories // <-- 【核心修改1】在这里添加新变量
+            memories, worldBookCategories, customThemes // <-- 新增
         ] = await Promise.all([
             db.chats.toArray(),
             db.worldBooks.toArray(),
@@ -6340,22 +6368,17 @@ async function exportBackup() {
             db.qzonePhotos.toArray(),
             db.favorites.toArray(),
             db.qzoneGroups.toArray(),
-                        db.memories.toArray(),
-            db.worldBookCategories.toArray() // <-- 【核心修改2】在这里添加对新表的读取
+            db.memories.toArray(),
+            db.worldBookCategories.toArray(),
+            db.customThemes.toArray() // <-- 新增
         ]);
-
         Object.assign(backupData, {
             chats, worldBooks, userStickers, apiConfig, globalSettings,
             personaPresets, musicLibrary, qzoneSettings, qzonePosts,
             qzoneAlbums, qzonePhotos, favorites, qzoneGroups,
-            memories,
-            worldBookCategories // <-- 【核心修改3】将新数据添加到备份对象中
+            memories, worldBookCategories, customThemes // <-- 新增
         });
-        
-        const blob = new Blob(
-            [JSON.stringify(backupData, null, 2)], 
-            { type: 'application/json' }
-        );
+        const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const link = Object.assign(document.createElement('a'), {
             href: url,
@@ -6363,25 +6386,21 @@ async function exportBackup() {
         });
         link.click();
         URL.revokeObjectURL(url);
-        
         await showCustomAlert('导出成功', '已成功导出所有数据！');
-
     } catch (error) {
         console.error("导出数据时出错:", error);
         await showCustomAlert('导出失败', `发生了一个错误: ${error.message}`);
     }
 }
 
-// ▼▼▼ 用这个【已包含 memories】的版本，完整替换旧的 importBackup 函数 ▼▼▼
+// ▼▼▼ 用这个【已更新】的版本替换旧的 importBackup 函数 ▼▼▼
 async function importBackup(file) {
     if (!file) return;
-
     const confirmed = await showCustomConfirm(
         '严重警告！',
         '导入备份将完全覆盖您当前的所有数据，包括聊天、动态、设置等。此操作不可撤销！您确定要继续吗？',
         { confirmButtonClass: 'btn-danger' }
     );
-
     if (!confirmed) return;
 
     try {
@@ -6392,7 +6411,6 @@ async function importBackup(file) {
             for (const table of db.tables) {
                 await table.clear();
             }
-
             if (Array.isArray(data.chats)) await db.chats.bulkPut(data.chats);
             if (Array.isArray(data.worldBooks)) await db.worldBooks.bulkPut(data.worldBooks);
             if (Array.isArray(data.worldBookCategories)) await db.worldBookCategories.bulkPut(data.worldBookCategories);
@@ -6403,7 +6421,8 @@ async function importBackup(file) {
             if (Array.isArray(data.qzonePhotos)) await db.qzonePhotos.bulkPut(data.qzonePhotos);
             if (Array.isArray(data.favorites)) await db.favorites.bulkPut(data.favorites);
             if (Array.isArray(data.qzoneGroups)) await db.qzoneGroups.bulkPut(data.qzoneGroups);
-            if (Array.isArray(data.memories)) await db.memories.bulkPut(data.memories); // 【核心修正】新增
+            if (Array.isArray(data.memories)) await db.memories.bulkPut(data.memories);
+            if (Array.isArray(data.customThemes)) await db.customThemes.bulkPut(data.customThemes); // <-- 新增
 
             if (data.apiConfig) await db.apiConfig.put(data.apiConfig);
             if (data.globalSettings) await db.globalSettings.put(data.globalSettings);
@@ -6412,16 +6431,15 @@ async function importBackup(file) {
         });
 
         await showCustomAlert('导入成功', '所有数据已成功恢复！应用即将刷新以应用所有更改。');
-        
         setTimeout(() => {
             window.location.reload();
         }, 1500);
-
     } catch (error) {
         console.error("导入数据时出错:", error);
         await showCustomAlert('导入失败', `文件格式不正确或数据已损坏: ${error.message}`);
     }
 }
+
 
         function applyCustomFont(fontUrl, isPreviewOnly = false) {
             if (!fontUrl) {
@@ -6459,19 +6477,12 @@ async function importBackup(file) {
             document.getElementById('font-preview').style.fontFamily = '';
             alert('已恢复默认字体。');
         }
-
+// ▼▼▼ 用这个【新版本】替换旧的 loadAllDataFromDB 函数 ▼▼▼
 async function loadAllDataFromDB() {
-    // ▼▼▼ 【核心修改在这里】 ▼▼▼
     const [
-        chatsArr,
-        apiConfig,
-        globalSettings,
-        userStickers,
-        worldBooks,
-        musicLib,
-        personaPresets,
-        qzoneSettings,
-        initialFavorites // 将 initialFavorites 加入到解构赋值中
+        chatsArr, apiConfig, globalSettings, userStickers,
+        worldBooks, musicLib, personaPresets, qzoneSettings,
+        initialFavorites, customThemes // <--- 【核心修改1】在这里添加 customThemes
     ] = await Promise.all([
         db.chats.toArray(),
         db.apiConfig.get('main'),
@@ -6481,66 +6492,37 @@ async function loadAllDataFromDB() {
         db.musicLibrary.get('main'),
         db.personaPresets.toArray(),
         db.qzoneSettings.get('main'),
-        db.favorites.orderBy('timestamp').reverse().toArray() // 确保这一行在 Promise.all 的数组参数内
+        db.favorites.orderBy('timestamp').reverse().toArray(),
+        db.customThemes.toArray() // <--- 【核心修改2】从数据库读取主题
     ]);
-    // ▲▲▲ 【修改结束】 ▲▲▲
+
+    // ... (您原有的所有 chat 数据迁移逻辑保持不变) ...
 
     state.chats = chatsArr.reduce((acc, chat) => {
-
-    if (typeof chat.unreadCount === 'undefined') {
-        chat.unreadCount = 0; // 如果这个聊天对象没有 unreadCount 属性，就给它初始化为 0
-    }
-
-        // ★★★【核心重构：数据迁移脚本】★★★
-        // 检查是否是群聊，并且其成员对象使用的是旧的 `name` 结构
+        // (您所有的 chat 数据迁移逻辑都在这里，保持原样)
+        // ...
+        if (typeof chat.unreadCount === 'undefined') {
+            chat.unreadCount = 0;
+        }
         if (chat.isGroup && chat.members && chat.members.length > 0 && chat.members[0].name) {
-            console.log(`检测到旧版群聊数据 for "${chat.name}"，正在执行迁移...`);
             chat.members.forEach(member => {
-                // 如果这个成员对象没有 originalName，说明是旧数据
                 if (typeof member.originalName === 'undefined') {
-                    member.originalName = member.name; // 将旧的 name 作为 originalName
-                    member.groupNickname = member.name; // 同时创建一个初始的 groupNickname
-                    delete member.name; // 删除旧的、有歧义的 name 字段
-                    needsUpdate = true; // 标记需要存回数据库
+                    member.originalName = member.name;
+                    member.groupNickname = member.name;
+                    delete member.name;
                 }
             });
-             console.log(`迁移完成 for "${chat.name}"`);
         }
-
-        // --- ▼▼▼ 核心修复就在这里 ▼▼▼ ---
-        // 检查1：如果是一个单聊，并且没有 status 属性
         if (!chat.isGroup && !chat.status) {
-            // 就为它补上一个默认的 status 对象
-            chat.status = {
-                text: '在线',
-                lastUpdate: Date.now(),
-                isBusy: false
-            };
-            console.log(`为旧角色 "${chat.name}" 补全了status属性。`);
+            chat.status = { text: '在线', lastUpdate: Date.now(), isBusy: false };
         }
-        // --- ▲▲▲ 修复结束 ▲▲▲
-
-        // --- ▼▼▼ 核心修复就在这里 ▼▼▼ ---
-        // 检查2：兼容最新的“关系”功能
         if (!chat.isGroup && !chat.relationship) {
-            // 如果是单聊，且没有 relationship 对象，就补上一个默认的
-            chat.relationship = {
-                status: 'friend',
-                blockedTimestamp: null,
-                applicationReason: ''
-            };
-            console.log(`为旧角色 "${chat.name}" 补全了 relationship 属性。`);
+            chat.relationship = { status: 'friend', blockedTimestamp: null, applicationReason: '' };
         }
-        // --- ▲▲▲ 修复结束 ▲▲▲
-
-    // ▼▼▼ 在这里添加 ▼▼▼
-    if (!chat.isGroup && (!chat.settings || !chat.settings.aiAvatarLibrary)) {
-        if (!chat.settings) chat.settings = {}; // 以防万一连settings都没有
-        chat.settings.aiAvatarLibrary = [];
-        console.log(`为旧角色 "${chat.name}" 补全了aiAvatarLibrary属性。`);
-    }
-    // ▲▲▲ 添加结束 ▲▲▲
-
+        if (!chat.isGroup && (!chat.settings || !chat.settings.aiAvatarLibrary)) {
+            if (!chat.settings) chat.settings = {};
+            chat.settings.aiAvatarLibrary = [];
+        }
         if (!chat.musicData) chat.musicData = { totalTime: 0 };
         if (chat.settings && chat.settings.linkedWorldBookId && !chat.settings.linkedWorldBookIds) {
             chat.settings.linkedWorldBookIds = [chat.settings.linkedWorldBookId];
@@ -6549,30 +6531,22 @@ async function loadAllDataFromDB() {
         acc[chat.id] = chat;
         return acc;
     }, {});
+
+    // ... (所有其他 state 的赋值逻辑保持不变) ...
     state.apiConfig = apiConfig || { id: 'main', proxyUrl: '', apiKey: '', model: '' };
-
-state.globalSettings = globalSettings || { 
-    id: 'main', 
-    wallpaper: 'linear-gradient(135deg, #89f7fe, #66a6ff)', 
-    fontUrl: '', 
-    enableBackgroundActivity: false, 
-    backgroundActivityInterval: 60,
-    blockCooldownHours: 1,
-    appIcons: { ...DEFAULT_APP_ICONS } // 【核心修改】确保appIcons存在并有默认值
-};
-// 【核心修改】合并已保存的图标和默认图标，防止更新后旧数据丢失新图标
-state.globalSettings.appIcons = { ...DEFAULT_APP_ICONS, ...(state.globalSettings.appIcons || {}) };
-
+    state.globalSettings = globalSettings || { id: 'main', wallpaper: 'linear-gradient(135deg, #89f7fe, #66a6ff)', fontUrl: '', enableBackgroundActivity: false, backgroundActivityInterval: 60, blockCooldownHours: 1, appIcons: { ...DEFAULT_APP_ICONS } };
+    state.globalSettings.appIcons = { ...DEFAULT_APP_ICONS, ...(state.globalSettings.appIcons || {}) };
     state.userStickers = userStickers || [];
     state.worldBooks = worldBooks || [];
     musicState.playlist = musicLib?.playlist || [];
     state.personaPresets = personaPresets || [];
     state.qzoneSettings = qzoneSettings || { id: 'main', nickname: '{{user}}', avatar: 'https://files.catbox.moe/q6z5fc.jpeg', banner: 'https://files.catbox.moe/r5heyt.gif' };
-
-    // ▼▼▼ 【确保这一行在 Promise.all 之后，并使用解构赋值得到的 initialFavorites】 ▼▼▼
     allFavoriteItems = initialFavorites || [];
-    // ▲▲▲ 【修改结束】 ▲▲▲
+    
+    // <--- 【核心修改3】将读取到的主题存入 state ---
+    state.customThemes = customThemes || []; 
 }
+// ▲▲▲ 替换结束 ▲▲▲
 
         async function saveGlobalPlaylist() { await db.musicLibrary.put({ id: 'main', playlist: musicState.playlist }); }
 
@@ -12835,6 +12809,108 @@ async function deleteCategory(categoryId) {
 
 // ▲▲▲ 新函数粘贴结束 ▲▲▲
 
+// ▼▼▼ 【全新】请将这【一整块】新函数粘贴到JS功能函数定义区 ▼▼▼
+
+/**
+ * 打开主题库模态框
+ */
+function openThemeLibrary() {
+    renderThemeLibrary(); // 先渲染列表内容
+    document.getElementById('theme-library-modal').classList.add('visible');
+}
+
+/**
+ * 关闭主题库模态框
+ */
+function closeThemeLibrary() {
+    document.getElementById('theme-library-modal').classList.remove('visible');
+}
+
+/**
+ * 渲染主题库列表
+ */
+function renderThemeLibrary() {
+    const container = document.getElementById('theme-list-container');
+    container.innerHTML = '';
+    if (state.customThemes.length === 0) {
+        container.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">主题库是空的，快去保存你的第一个主题吧！</p>';
+        return;
+    }
+    state.customThemes.forEach(theme => {
+        const item = document.createElement('div');
+        // 复用现有样式，看起来会很和谐
+        item.className = 'existing-group-item'; 
+        item.innerHTML = `
+            <span class="group-name theme-name-item" style="cursor: pointer; flex-grow: 1;">${theme.name}</span>
+            <span class="delete-group-btn delete-theme-btn" data-id="${theme.id}" style="font-size: 20px;">×</span>
+        `;
+        container.appendChild(item);
+    });
+}
+
+/**
+ * 将当前CSS保存为新主题
+ */
+async function saveCurrentTheme() {
+    const cssInput = document.getElementById('custom-css-input');
+    const css = cssInput.value.trim();
+    if (!css) {
+        alert('自定义样式内容不能为空！');
+        return;
+    }
+    const themeName = await showCustomPrompt('保存主题', '请输入主题名称');
+    if (!themeName || !themeName.trim()) return;
+
+    const existingTheme = state.customThemes.find(t => t.name === themeName.trim());
+    if (existingTheme) {
+        const confirmed = await showCustomConfirm('覆盖主题', `已存在名为“${themeName.trim()}”的主题，要覆盖它吗？`);
+        if (confirmed) {
+            existingTheme.css = css;
+            await db.customThemes.put(existingTheme);
+        } else {
+            return; // 用户取消覆盖
+        }
+    } else {
+        const newTheme = { name: themeName.trim(), css: css };
+        const newId = await db.customThemes.add(newTheme);
+        newTheme.id = newId;
+        state.customThemes.push(newTheme);
+    }
+    
+    await showCustomAlert('成功', `主题“${themeName.trim()}”已保存！`);
+}
+
+/**
+ * 应用一个已保存的主题
+ * @param {string} themeName - 要应用的主题的名称
+ */
+function applySavedTheme(themeName) {
+    const theme = state.customThemes.find(t => t.name === themeName);
+    if (theme) {
+        const cssInput = document.getElementById('custom-css-input');
+        cssInput.value = theme.css;
+        updateSettingsPreview(); // 应用后立即更新预览
+        closeThemeLibrary(); // 应用后自动关闭库
+    }
+}
+
+/**
+ * 删除一个已保存的主题
+ * @param {number} themeId - 要删除的主题的ID
+ */
+async function deleteSavedTheme(themeId) {
+    const theme = state.customThemes.find(t => t.id === themeId);
+    if (!theme) return;
+    const confirmed = await showCustomConfirm('删除主题', `确定要删除主题“${theme.name}”吗？`, { confirmButtonClass: 'btn-danger' });
+    if (confirmed) {
+        await db.customThemes.delete(themeId);
+        state.customThemes = state.customThemes.filter(t => t.id !== themeId);
+        renderThemeLibrary(); // 重新渲染列表
+    }
+}
+
+// ▲▲▲ 新函数粘贴结束 ▲▲▲
+
         // ===================================================================
         // 4. 初始化函数 init()
         // ===================================================================
@@ -15258,6 +15334,39 @@ document.getElementById('existing-categories-list').addEventListener('click', (e
     }
 });
 // ▲▲▲ 新代码粘贴结束 ▲▲▲
+
+
+
+// ▼▼▼ 【全新】请将这段新事件绑定代码粘贴到 init() 函数的事件监听器区域 ▼▼▼
+
+// 绑定“保存主题”按钮
+document.getElementById('save-theme-btn').addEventListener('click', saveCurrentTheme);
+
+// 绑定“主题库”按钮
+document.getElementById('open-theme-library-btn').addEventListener('click', openThemeLibrary);
+
+// 绑定主题库 modal 的关闭按钮
+document.getElementById('close-theme-library-btn').addEventListener('click', closeThemeLibrary);
+
+// 使用事件委托处理主题库列表中的点击事件
+document.getElementById('theme-list-container').addEventListener('click', (e) => {
+    const target = e.target;
+    // 如果点击的是删除按钮
+    if (target.classList.contains('delete-theme-btn')) {
+        const themeId = parseInt(target.dataset.id);
+        if (themeId) {
+            deleteSavedTheme(themeId);
+        }
+    } 
+    // 如果点击的是主题名称
+    else if (target.classList.contains('theme-name-item')) {
+        const themeName = target.textContent;
+        applySavedTheme(themeName);
+    }
+});
+
+// ▲▲▲ 新增代码粘贴结束 ▲▲▲
+
 
         // ===================================================================
         // 5. 启动！
